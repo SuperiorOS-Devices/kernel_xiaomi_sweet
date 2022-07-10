@@ -8,3 +8,4 @@ obj-$(CONFIG_CHARGER_LN8000)	+= ln8000_charger.o pd_policy_manager.o cp_qc30.o
 ifeq ($(cc-name),gcc)
 CFLAGS_REMOVE_bq2597x_charger.o += -mgeneral-regs-only
 endif
+CFLAGS_bq2597x_charger.o += -mno-implicit-float
