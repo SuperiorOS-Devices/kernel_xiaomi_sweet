@@ -295,7 +295,7 @@ static int simple_lmk_reclaim_thread(void *data)
 	while (1) {
 		wait_event_freezable(oom_waitq, atomic_read(&needs_reclaim));
 		scan_and_kill();
-		atomic_set_release(&needs_reclaim, 0);
+		atomic_set(&needs_reclaim, 0);
 	}
 
 	return 0;
@@ -335,9 +335,12 @@ static int simple_lmk_vmpressure_cb(struct notifier_block *nb,
 	old_pressure = new_pressure;
 	new_pressure = pressure;
 
-	if (is_oom_conditions(old_pressure, new_pressure, min_pressure_margin) &&
-			!atomic_cmpxchg_acquire(&needs_reclaim, 0, 1))
-		wake_up(&oom_waitq);
+	if (is_oom_conditions(old_pressure, new_pressure, min_pressure_margin)) {
+		atomic_set(&needs_reclaim, 1);
+		smp_mb__after_atomic();
+		if (waitqueue_active(&oom_waitq))
+			wake_up(&oom_waitq);
+	}
 
 	return NOTIFY_OK;
 }
