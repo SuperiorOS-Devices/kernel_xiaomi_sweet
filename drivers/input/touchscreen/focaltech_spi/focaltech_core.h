@@ -267,7 +267,9 @@ struct fts_ts_data {
 	struct pinctrl_state *pins_suspend;
 	struct pinctrl_state *pins_release;
 #endif
-#if defined(CONFIG_DRM) || defined(CONFIG_FB)
+#if defined(CONFIG_DRM)
+	struct notifier_block msm_drm_notif;
+#elif defined(CONFIG_FB)
 	struct notifier_block fb_notif;
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	struct early_suspend early_suspend;
