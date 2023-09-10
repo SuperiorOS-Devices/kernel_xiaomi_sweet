@@ -142,7 +142,7 @@ struct nvt_ts_data {
 	int8_t phys[32];
 #if defined(CONFIG_FB)
 #ifdef _DRM_NOTIFIER_H_
-	struct notifier_block drm_notif;
+	struct notifier_block msm_drm_notif;
 #else
 	struct notifier_block fb_notif;
 #endif
