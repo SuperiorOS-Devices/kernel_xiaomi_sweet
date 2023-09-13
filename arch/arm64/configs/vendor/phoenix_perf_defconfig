@@ -6183,3 +6183,8 @@ CONFIG_MACH_XIAOMI_PHOENIX=y
 #
 # RmNet extensions
 #
+
+#
+# DTS EAGLE
+#
+CONFIG_AINUR_DTS_SW=y

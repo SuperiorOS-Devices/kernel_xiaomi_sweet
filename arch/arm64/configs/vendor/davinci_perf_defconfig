@@ -6118,3 +6118,8 @@ CONFIG_MACH_XIAOMI_DAVINCI=y
 #
 # RmNet extensions
 #
+
+#
+# DTS EAGLE
+#
+CONFIG_AINUR_DTS_SW=y

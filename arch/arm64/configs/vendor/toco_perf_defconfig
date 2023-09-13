@@ -6149,3 +6149,8 @@ CONFIG_MACH_XIAOMI_TOCO=y
 #
 # RmNet extensions
 #
+
+#
+# DTS EAGLE
+#
+CONFIG_AINUR_DTS_SW=y
