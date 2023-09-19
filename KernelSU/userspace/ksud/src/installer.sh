@@ -1,8 +1,11 @@
 #!/system/bin/sh
 ############################################
 # KernelSU installer script
-# Credit to Magisk!!!
+# mostly from module_installer.sh
+# and util_functions.sh in Magisk
 ############################################
+
+umask 022
 
 ui_print() {
   if $BOOTMODE; then
@@ -66,6 +69,11 @@ print_title() {
   ui_print " $1 "
   [ "$2" ] && ui_print " $2 "
   ui_print "$bar"
+}
+
+check_sepolicy() {
+    /data/adb/ksud sepolicy check "$1"
+    return $?
 }
 
 ######################
@@ -263,12 +271,22 @@ mktouch() {
   chmod 644 $1
 }
 
-request_size_check() {
-  reqSizeM=`du -ms "$1" | cut -f1`
+mark_remove() {
+  mkdir -p ${1%/*} 2>/dev/null
+  mknod $1 c 0 0
+  chmod 644 $1
 }
 
-unzip() {
-    /system/bin/unzip -q "$@"
+mark_replace() {
+  # REPLACE must be directory!!!
+  # https://docs.kernel.org/filesystems/overlayfs.html#whiteouts-and-opaque-directories
+  mkdir -p $1 2>/dev/null
+  setfattr -n trusted.overlay.opaque -v y $1
+  chmod 644 $1
+}
+
+request_size_check() {
+  reqSizeM=`du -ms "$1" | cut -f1`
 }
 
 request_zip_size_check() {
@@ -283,6 +301,20 @@ is_legacy_script() {
   return $?
 }
 
+# find_mv [source_directory] [destination_directory]
+find_mv() {
+    for file in $(find "$1" -type f); do
+        # Get the sub directory of the file.
+        sub_dir=$(echo "${file%/*}" | sed "s|$1||")
+        # Create the new directory, if it doesn't already exist.
+        mkdir -p "$2$sub_dir"
+        # Move the file to the new directory.
+        mv -f "$file" "$2$sub_dir"
+    done
+    # Clean old directory.
+    rm -r "$1"
+}
+
 handle_partition() {
     # if /system/vendor is a symlink, we need to move it out of $MODPATH/system, otherwise it will be overlayed
     # if /system/vendor is a normal directory, it is ok to overlay it and we don't need to overlay it separately.
@@ -295,7 +327,7 @@ handle_partition() {
         ui_print "- Handle partition /$1"
         # we create a symlink if module want to access $MODPATH/system/$1
         # but it doesn't always work(ie. write it in post-fs-data.sh would fail because it is readonly)
-        mv -f $MODPATH/system/$1 $MODPATH/$1 && ln -sf /$1 $MODPATH/system/$1
+        find_mv $MODPATH/system/$1 $MODPATH/$1 && ln -sf ../$1 $MODPATH/system/$1
     fi
 }
 
@@ -373,15 +405,21 @@ install_module() {
     [ -f $MODPATH/customize.sh ] && . $MODPATH/customize.sh
   fi
 
-  handle_partition vendor
-  handle_partition system_ext
-  handle_partition product
-
   # Handle replace folders
   for TARGET in $REPLACE; do
     ui_print "- Replace target: $TARGET"
-    mktouch $MODPATH$TARGET/.replace
+    mark_replace $MODPATH$TARGET
   done
+
+  # Handle remove files
+  for TARGET in $REMOVE; do
+    ui_print "- Remove target: $TARGET"
+    mark_remove $MODPATH$TARGET
+  done
+
+  handle_partition vendor
+  handle_partition system_ext
+  handle_partition product
 
   if $BOOTMODE; then
     mktouch $NVBASE/modules/$MODID/update
@@ -412,12 +450,11 @@ install_module() {
 [ -z $BOOTMODE ] && ps -A 2>/dev/null | grep zygote | grep -qv grep && BOOTMODE=true
 [ -z $BOOTMODE ] && BOOTMODE=false
 
-NVBASE=/data/adb/ksu
+NVBASE=/data/adb
 TMPDIR=/dev/tmp
+POSTFSDATAD=$NVBASE/post-fs-data.d
+SERVICED=$NVBASE/service.d
 
 # Some modules dependents on this
-MAGISK_VER=25.2
-MAGISK_VER_CODE=25200
-
-# KSU to recognize 
-KSU=true
+export MAGISK_VER=25.2
+export MAGISK_VER_CODE=25200
