@@ -36,17 +36,19 @@ fn do_cpio_cmd(magiskboot: &Path, workding_dir: &Path, cmd: &str) -> Result<()> 
     Ok(())
 }
 
-fn dd<P: AsRef<Path> + std::fmt::Debug, Q: AsRef<Path> + std::fmt::Debug>(
-    ifile: P,
-    ofile: Q,
-) -> Result<()> {
+fn dd<P: AsRef<Path>, Q: AsRef<Path>>(ifile: P, ofile: Q) -> Result<()> {
     let status = Command::new("dd")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .arg(format!("if={ifile:?}"))
-        .arg(format!("of={ofile:?}"))
+        .arg(format!("if={}", ifile.as_ref().display()))
+        .arg(format!("of={}", ofile.as_ref().display()))
         .status()?;
-    ensure!(status.success(), "dd if={:?} of={:?} failed", ifile, ofile);
+    ensure!(
+        status.success(),
+        "dd if={:?} of={:?} failed",
+        ifile.as_ref(),
+        ofile.as_ref()
+    );
     Ok(())
 }
 
@@ -66,7 +68,9 @@ pub fn patch(
         ensure_gki_kernel()?;
     }
 
-    if kernel.is_some() {
+    let is_replace_kernel = kernel.is_some();
+
+    if is_replace_kernel {
         ensure!(
             init.is_none() && kmod.is_none(),
             "init and module must not be specified."
@@ -101,7 +105,7 @@ pub fn patch(
 
         let init_boot_exist =
             Path::new(&format!("/dev/block/by-name/init_boot{slot_suffix}")).exists();
-        let boot_partition = if init_boot_exist {
+        let boot_partition = if !is_replace_kernel && init_boot_exist {
             format!("/dev/block/by-name/init_boot{slot_suffix}")
         } else {
             format!("/dev/block/by-name/boot{slot_suffix}")
